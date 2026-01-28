@@ -29,7 +29,7 @@ import {
   probeRingCentral,
 } from "./api.js";
 import { getRingCentralRuntime } from "./runtime.js";
-import { resolveRingCentralWebhookPath, startRingCentralMonitor } from "./monitor.js";
+import { startRingCentralMonitor } from "./monitor.js";
 import {
   normalizeRingCentralTarget,
   isRingCentralChatTarget,
@@ -90,7 +90,7 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
     ...meta,
     label: "RingCentral",
     selectionLabel: "RingCentral Team Messaging",
-    blurb: "RingCentral Team Messaging via REST API and webhooks.",
+    blurb: "RingCentral Team Messaging via REST API and WebSocket.",
     order: 56,
   },
   pairing: {
@@ -149,8 +149,6 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
           "clientSecret",
           "jwt",
           "server",
-          "webhookPath",
-          "webhookVerificationToken",
           "name",
         ],
       }),
@@ -328,11 +326,9 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
             ...(input.jwt ? { jwt: input.jwt } : {}),
           };
       const server = input.server?.trim();
-      const webhookPath = input.webhookPath?.trim();
       const configPatch = {
         ...patch,
         ...(server ? { server } : {}),
-        ...(webhookPath ? { webhookPath } : {}),
       };
       if (accountId === DEFAULT_ACCOUNT_ID) {
         return {
@@ -495,7 +491,6 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
       configured: snapshot.configured ?? false,
       credentialSource: snapshot.credentialSource ?? "none",
       server: snapshot.server ?? null,
-      webhookPath: snapshot.webhookPath ?? null,
       running: snapshot.running ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
       lastStopAt: snapshot.lastStopAt ?? null,
@@ -512,26 +507,24 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
       credentialSource: account.credentialSource,
       server: account.server,
       clientId: account.clientId ? `${account.clientId.slice(0, 8)}...` : undefined,
-      webhookPath: account.config.webhookPath,
       running: runtime?.running ?? false,
       lastStartAt: runtime?.lastStartAt ?? null,
       lastStopAt: runtime?.lastStopAt ?? null,
       lastError: runtime?.lastError ?? null,
       lastInboundAt: runtime?.lastInboundAt ?? null,
       lastOutboundAt: runtime?.lastOutboundAt ?? null,
-      dmPolicy: account.config.dm?.policy ?? "pairing",
+      dmPolicy: account.config.dm?.policy ?? "allowlist",
       probe,
     }),
   },
   gateway: {
     startAccount: async (ctx) => {
       const account = ctx.account;
-      ctx.log?.info(`[${account.accountId}] starting RingCentral webhook`);
+      ctx.log?.info(`[${account.accountId}] starting RingCentral WebSocket`);
       ctx.setStatus({
         accountId: account.accountId,
         running: true,
         lastStartAt: Date.now(),
-        webhookPath: resolveRingCentralWebhookPath({ account }),
         server: account.server,
       });
       const unregister = await startRingCentralMonitor({
@@ -539,7 +532,6 @@ export const ringcentralPlugin: ChannelPlugin<ResolvedRingCentralAccount> = {
         config: ctx.cfg as ClawdbotConfig,
         runtime: ctx.runtime,
         abortSignal: ctx.abortSignal,
-        webhookPath: account.config.webhookPath,
         statusSink: (patch) => ctx.setStatus({ accountId: account.accountId, ...patch }),
       });
       return () => {

@@ -96,8 +96,6 @@ export type RingCentralAccountConfig = {
   clientSecret?: string;
   jwt?: string;
   server?: string;
-  webhookPath?: string;
-  webhookVerificationToken?: string;
   markdown?: MarkdownConfig;
   dmPolicy?: DmPolicy;
   allowFrom?: Array<string | number>;

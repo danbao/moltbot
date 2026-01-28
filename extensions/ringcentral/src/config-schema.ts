@@ -27,8 +27,6 @@ const RingCentralAccountSchemaBase = z
     clientSecret: z.string().optional(),
     jwt: z.string().optional(),
     server: z.string().optional(),
-    webhookPath: z.string().optional(),
-    webhookVerificationToken: z.string().optional(),
     markdown: MarkdownConfigSchema,
     dmPolicy: DmPolicySchema.optional().default("allowlist"),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),

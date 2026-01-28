@@ -163,41 +163,6 @@ export async function downloadRingCentralAttachment(params: {
   };
 }
 
-export async function createRingCentralWebhookSubscription(params: {
-  account: ResolvedRingCentralAccount;
-  webhookUrl: string;
-  eventFilters: string[];
-  expiresIn?: number;
-}): Promise<{ subscriptionId?: string; expiresIn?: number }> {
-  const { account, webhookUrl, eventFilters, expiresIn = 604799 } = params;
-  const platform = await getRingCentralPlatform(account);
-
-  const body = {
-    eventFilters,
-    deliveryMode: {
-      transportType: "WebHook",
-      address: webhookUrl,
-    },
-    expiresIn,
-  };
-
-  const response = await platform.post("/restapi/v1.0/subscription", body);
-  const result = (await response.json()) as { id?: string; expiresIn?: number };
-  return {
-    subscriptionId: result.id,
-    expiresIn: result.expiresIn,
-  };
-}
-
-export async function deleteRingCentralWebhookSubscription(params: {
-  account: ResolvedRingCentralAccount;
-  subscriptionId: string;
-}): Promise<void> {
-  const { account, subscriptionId } = params;
-  const platform = await getRingCentralPlatform(account);
-  await platform.delete(`/restapi/v1.0/subscription/${subscriptionId}`);
-}
-
 export async function probeRingCentral(
   account: ResolvedRingCentralAccount,
 ): Promise<{ ok: boolean; error?: string; elapsedMs: number }> {

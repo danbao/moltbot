@@ -739,10 +739,3 @@ export async function startRingCentralMonitor(
 
   return cleanup;
 }
-
-// Keep the webhook path resolver for status display
-export function resolveRingCentralWebhookPath(_params: {
-  account: ResolvedRingCentralAccount;
-}): string {
-  return "(WebSocket)";
-}
