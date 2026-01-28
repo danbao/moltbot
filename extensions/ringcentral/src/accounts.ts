@@ -1,13 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { homedir } from "node:os";
-
 import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "clawdbot/plugin-sdk";
 
 import type { RingCentralAccountConfig, RingCentralConfig } from "./types.js";
 
-export type RingCentralCredentialSource = "config" | "file" | "env" | "none";
+export type RingCentralCredentialSource = "config" | "env" | "none";
 
 export type ResolvedRingCentralAccount = {
   accountId: string;
@@ -25,89 +21,8 @@ const ENV_CLIENT_ID = "RINGCENTRAL_CLIENT_ID";
 const ENV_CLIENT_SECRET = "RINGCENTRAL_CLIENT_SECRET";
 const ENV_JWT = "RINGCENTRAL_JWT";
 const ENV_SERVER = "RINGCENTRAL_SERVER";
-const ENV_CREDENTIALS_FILE = "RINGCENTRAL_CREDENTIALS_FILE";
 
 const DEFAULT_SERVER = "https://platform.ringcentral.com";
-
-// Default credential file locations to check
-const DEFAULT_CREDENTIALS_FILES = [
-  "rc-credentials.json",
-  ".clawdbot/rc-credentials.json",
-];
-
-type CredentialsFile = {
-  clientId?: string;
-  clientSecret?: string;
-  jwt?: string;
-  server?: string;
-};
-
-let cachedFileCredentials: { path: string; data: CredentialsFile } | null = null;
-
-function findCredentialsFile(configFile?: string): { path: string; data: CredentialsFile } | null {
-  // If explicitly specified, use that
-  if (configFile?.trim()) {
-    const filePath = resolve(configFile.trim());
-    if (existsSync(filePath)) {
-      try {
-        const content = readFileSync(filePath, "utf8");
-        return { path: filePath, data: JSON.parse(content) as CredentialsFile };
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  // Check env var for file path
-  const envFile = process.env[ENV_CREDENTIALS_FILE]?.trim();
-  if (envFile) {
-    const filePath = resolve(envFile);
-    if (existsSync(filePath)) {
-      try {
-        const content = readFileSync(filePath, "utf8");
-        return { path: filePath, data: JSON.parse(content) as CredentialsFile };
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  // Check default locations
-  const searchPaths = [
-    ...DEFAULT_CREDENTIALS_FILES.map((f) => resolve(process.cwd(), f)),
-    ...DEFAULT_CREDENTIALS_FILES.map((f) => resolve(homedir(), f)),
-  ];
-
-  for (const filePath of searchPaths) {
-    if (existsSync(filePath)) {
-      try {
-        const content = readFileSync(filePath, "utf8");
-        return { path: filePath, data: JSON.parse(content) as CredentialsFile };
-      } catch {
-        continue;
-      }
-    }
-  }
-
-  return null;
-}
-
-function loadFileCredentials(configFile?: string): CredentialsFile | null {
-  // Use cached if available and no specific file requested
-  if (!configFile && cachedFileCredentials) {
-    return cachedFileCredentials.data;
-  }
-
-  const result = findCredentialsFile(configFile);
-  if (result) {
-    if (!configFile) {
-      cachedFileCredentials = result;
-    }
-    return result.data;
-  }
-  return null;
-}
 
 function listConfiguredAccountIds(cfg: ClawdbotConfig): string[] {
   const accounts = (cfg.channels?.ringcentral as RingCentralConfig | undefined)?.accounts;
@@ -176,28 +91,7 @@ function resolveCredentialsFromConfig(params: {
     };
   }
 
-  // 2. Check credentials file (rc-credentials.json)
-  const fileCredentials = loadFileCredentials(
-    (account as { credentialsFile?: string }).credentialsFile,
-  );
-  if (fileCredentials) {
-    const fileClientId = fileCredentials.clientId?.trim();
-    const fileClientSecret = fileCredentials.clientSecret?.trim();
-    const fileJwt = fileCredentials.jwt?.trim();
-    const fileServer = fileCredentials.server?.trim() || DEFAULT_SERVER;
-
-    if (fileClientId && fileClientSecret && fileJwt) {
-      return {
-        clientId: fileClientId,
-        clientSecret: fileClientSecret,
-        jwt: fileJwt,
-        server: fileServer,
-        source: "file",
-      };
-    }
-  }
-
-  // 3. Check environment variables (default account only)
+  // 2. Check environment variables (default account only)
   if (accountId === DEFAULT_ACCOUNT_ID) {
     const envClientId = process.env[ENV_CLIENT_ID]?.trim();
     const envClientSecret = process.env[ENV_CLIENT_SECRET]?.trim();
@@ -214,21 +108,15 @@ function resolveCredentialsFromConfig(params: {
       };
     }
 
-    // 4. Allow partial config + file + env fallback
-    const finalClientId = configClientId || fileCredentials?.clientId?.trim() || envClientId;
-    const finalClientSecret = configClientSecret || fileCredentials?.clientSecret?.trim() || envClientSecret;
-    const finalJwt = configJwt || fileCredentials?.jwt?.trim() || envJwt;
-    const finalServer = configServer !== DEFAULT_SERVER
-      ? configServer
-      : fileCredentials?.server?.trim() || envServer;
+    // 3. Allow partial config + env fallback
+    const finalClientId = configClientId || envClientId;
+    const finalClientSecret = configClientSecret || envClientSecret;
+    const finalJwt = configJwt || envJwt;
+    const finalServer = configServer !== DEFAULT_SERVER ? configServer : envServer;
 
     if (finalClientId && finalClientSecret && finalJwt) {
       const source: RingCentralCredentialSource =
-        configClientId || configClientSecret || configJwt
-          ? "config"
-          : fileCredentials?.clientId || fileCredentials?.clientSecret || fileCredentials?.jwt
-            ? "file"
-            : "env";
+        configClientId || configClientSecret || configJwt ? "config" : "env";
       return {
         clientId: finalClientId,
         clientSecret: finalClientSecret,

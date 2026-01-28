@@ -96,7 +96,6 @@ export type RingCentralAccountConfig = {
   clientSecret?: string;
   jwt?: string;
   server?: string;
-  credentialsFile?: string;
   webhookPath?: string;
   webhookVerificationToken?: string;
   markdown?: MarkdownConfig;
