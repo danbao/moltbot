@@ -680,7 +680,7 @@ export async function startRingCentralMonitor(
 
   // Handle notifications
   subscription.on(subscription.events.notification, (event: unknown) => {
-    runtime.log?.(`[${account.accountId}] WebSocket notification received: ${JSON.stringify(event).slice(0, 500)}`);
+    logVerbose(core, runtime, `WebSocket notification received: ${JSON.stringify(event).slice(0, 500)}`);
     const evt = event as RingCentralWebhookEvent;
     processWebSocketEvent({
       event: evt,
